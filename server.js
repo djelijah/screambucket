@@ -35,7 +35,7 @@ const s3 = new aws.S3({
 // Utility function to fetch drawing data from Vercel
 async function fetchDrawingData() {
     try {
-        const response = await fetch('https://your-vercel-deployment-url/get-drawing');
+        const response = await fetch('https://screambucket.vercel.app/get-drawing');
         const drawingData = await response.json();
         return drawingData;
     } catch (error) {
@@ -47,7 +47,7 @@ async function fetchDrawingData() {
 // Utility function to fetch audio data from Vercel
 async function fetchAudioData() {
     try {
-        const response = await fetch('https://your-vercel-deployment-url/get-audio');
+        const response = await fetch('https://screambucket.vercel.app/get-audio');
         const audioData = await response.json();
         return audioData;
     } catch (error) {
