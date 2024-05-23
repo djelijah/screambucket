@@ -102,7 +102,7 @@
 
     // Save drawing data to server
     function saveDrawing(data) {
-      fetch('https://screambucket.vercel.app/save-drawing', {
+      fetch('https://screambucket.vercel.app/api/save-drawing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -159,7 +159,7 @@
       var formData = new FormData();
       formData.append('audio', blob, 'recording.wav');
 
-      fetch('https://screambucket.vercel.app/upload-audio', {
+      fetch('https://screambucket.vercel.app/api/upload-audio', {
         method: 'POST',
         body: formData
       })
@@ -170,7 +170,7 @@
 
     // Fetch drawing data from server
     function fetchDrawingData() {
-      fetch('https://screambucket.vercel.app/get-drawing')
+      fetch('https://screambucket.vercel.app/api/get-drawing')
         .then(response => response.json())
         .then(data => {
           if (data && data.length > 0) {
@@ -186,7 +186,7 @@
 
     // Fetch audio data from server
     function fetchAudioData() {
-      fetch('https://screambucket.vercel.app/get-audio')
+      fetch('https://screambucket.vercel.app/api/get-audio')
         .then(response => response.json())
         .then(data => {
           console.log('Fetched audio data:', data);
