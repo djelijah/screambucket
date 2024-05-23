@@ -4,6 +4,9 @@ const multer = require('multer');
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const { configDotenv } = require('dotenv');
+
+configDotenv
 
 const app = express();
 const PORT = process.env.PORT || 3000;
