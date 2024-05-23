@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScreamBucket</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: Georgia, 'Times New Roman', Times, serif, sans-serif;
+      background-color: #ffffff;
+    }
+    canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 18px;
+      background-color: #ff4c4c;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background-color: #ff0000;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 2em;
+      color: #333;
+    }
+    p {
+      font-size: 1.2em;
+      color: #666;
+    }
+
+    .countdown {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 6em; /* Extra large font size */
+    }
+    .scream {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 6em; /* Extra large font size */
+      letter-spacing: 50px;
+      text-align: center; /* Center the text */
+    }
+  </style>
+</head>
+<body>
+  <h1>ScreamBucket</h1>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    var canvas = document.getElementById('canvas');
+    var context = canvas.getContext('2d');
+
+    var canvasWidth = window.innerWidth * 1; // Adjust width for responsiveness
+    var canvasHeight = window.innerHeight * 1; // Adjust height for responsiveness
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    context.lineWidth = 1.5;
+
+    var step = 10;
+    var lines = [];
+    var audioContext;
+    var mediaRecorder;
+    var audioChunks = [];
+    var beep = new Audio('https://your-s3-bucket-url.amazonaws.com/beep.mp3');
+
+    // Create a new line for each recording with a diffused appearance across the canvas
+    function createLine(startX, startY) {
+      var line = [];
+
+      // Randomize the starting position across the entire canvas
+      startX = Math.random() * canvasWidth;
+      startY = Math.random() * canvasHeight;
+
+      // Adjust step size for a more diffused appearance
+      var stepX = Math.random() * 20; // Random horizontal step size
+      var stepY = Math.random() * 20; // Random vertical step size
+
+      for (var j = startX; j <= canvasWidth - stepX; j += stepX) {
+        var randomXDiffusion = (Math.random() - 0.5) * 40;
+        var randomYDiffusion = (Math.random() - 0.5) * 40;
+        var angle = (Math.random() - 0.5) * Math.PI;
+        var newX = j + randomXDiffusion + Math.cos(angle) * stepX;
+        var newY = startY + randomYDiffusion + Math.sin(angle) * stepY; // Adding vertical randomness
+        var point = { x: newX, y: newY };
+        line.push(point);
+      }
+      lines.push(line);
+      saveDrawing({ lines });
+    }
+
+    // Draw all lines on the canvas
+    function drawLines() {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      for (var i = 0; i < lines.length; i++) {
+        context.beginPath();
+        context.moveTo(lines[i][0].x, lines[i][0].y);
+        for (var j = 0; j < lines[i].length; j++) {
+          context.lineTo(lines[i][j].x, lines[i][j].y);
+        }
+        context.stroke();
+      }
+    }
+
+    // Save drawing data to server
+    function saveDrawing(data) {
+      fetch('/save-drawing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(response => response.text())
+        .then(data => console.log('Drawing data saved:', data))
+        .catch(error => console.error('Error saving drawing data:', error));
+    }
+
+    // Record audio
+    function recordAudio() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = function(event) {
+            audioChunks.push(event.data);
+          };
+
+          mediaRecorder.onstop = function(event) {
+            var blob = new Blob(audioChunks, { type: 'audio/wav' });
+            uploadAudio(blob);
+            audioChunks = [];
+
+            var audioURL = window.URL.createObjectURL(blob);
+            var audio = new Audio(audioURL);
+            audio.loop = true;
+            audio.play();
+
+            var startX = 0;
+            var startY = Math.random() * canvasHeight;
+            createLine(startX, startY);
+
+            drawLines();
+
+            sessionStorage.setItem('hasRecorded', 'true');
+            console.log('Flag has been set:', sessionStorage.getItem('hasRecorded'));
+          };
+
+          mediaRecorder.start();
+
+          setTimeout(function() {
+            mediaRecorder.stop();
+          }, 5000);
+        })
+        .catch(function(err) {
+          console.error('The following getUserMedia error occurred:', err);
+        });
+    }
+
+    // Upload audio to server
+    function uploadAudio(blob) {
+      var formData = new FormData();
+      formData.append('audio', blob, 'recording.wav');
+
+      fetch('/upload-audio', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.text())
+      .then(data => console.log('Audio uploaded:', data))
+      .catch(error => console.error('Error uploading audio:', error));
+    }
+
+    // Function to display countdown numbers
+    function displayCountdown(number) {
+      var countdownWindow = document.createElement('div');
+      countdownWindow.classList.add('countdown');
+      countdownWindow.textContent = number;
+      document.body.appendChild(countdownWindow);
+      setTimeout(function() {
+        countdownWindow.remove();
+      }, 1000);
+    }
+
+    // Function to start recording after countdown
+  function startRecordingAfterCountdown() {
+    var countdownNumbers = [3, 2, 1];
+    countdownNumbers.forEach(function(number, index) {
+      setTimeout(function() {
+        beep.play(); // Play beep sound
+        displayCountdown(number);
+        if (index === countdownNumbers.length - 1) {
+          setTimeout(function() {
+            beep.play(); // Play beep sound
+            displayCountdown('SCREAAAAM');
+            setTimeout(function() {
+              recordAudio();
+            }, 1000);
+          }, 1000);
+        }
+      }, index * 1000); // Display each number for 2 seconds
+    });
+  }
+
+  // Function to start the countdown
+  function startCountdown() {
+    var countdown = 3;
+    var countdownInterval = setInterval(function() {
+      if (countdown > 0) {
+        console.log(countdown);
+        countdown--;
+      } else {
+        clearInterval(countdownInterval);
+        console.log('SCREAAAM!');
+        startRecordingAfterCountdown();
+      }
+    }, 1000);
+  }
+
+  // Start recording after countdown when the page is loaded
+  document.addEventListener('DOMContentLoaded', function() {
+    var hasRecorded = sessionStorage.getItem('hasRecorded');
+    if (hasRecorded === 'true') {
+      console.log('User has recorded before, fetching data.');
+      fetchDrawingData();
+      fetchAudioData();
+    } else {
+      console.log('User has not recorded before, starting countdown.');
+      startCountdown();
+    }
+  });
+
+  // Initialize the canvas with stored drawing and audio data
+  fetchDrawingData();
+  fetchAudioData();
+
+  </script>
+</body>
+</html>

@@ -1,9 +1,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const aws = require('aws-sdk');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,55 +25,41 @@ const upload = multer({ storage: storage });
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Utility function to read and parse JSON file safely
-function readJSONFileSync(filePath) {
-    if (fs.existsSync(filePath)) {
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        if (fileContent) {
-            return JSON.parse(fileContent);
-        }
+// AWS S3 configuration
+const s3 = new aws.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION
+});
+
+// Utility function to fetch drawing data from Vercel
+async function fetchDrawingData() {
+    try {
+        const response = await fetch('https://your-vercel-deployment-url/get-drawing');
+        const drawingData = await response.json();
+        return drawingData;
+    } catch (error) {
+        console.error('Error fetching drawing data:', error);
+        return [];
     }
-    return [];
 }
 
-// Endpoint to save drawing data
-app.post('/save-drawing', (req, res) => {
-    const newLine = req.body.lines;
-    let drawingData = readJSONFileSync('drawingData.json');
+// Utility function to fetch audio data from Vercel
+async function fetchAudioData() {
+    try {
+        const response = await fetch('https://your-vercel-deployment-url/get-audio');
+        const audioData = await response.json();
+        return audioData;
+    } catch (error) {
+        console.error('Error fetching audio data:', error);
+        return [];
+    }
+}
 
-    drawingData = newLine; // replace the whole drawing data with the new data
-    fs.writeFileSync('drawingData.json', JSON.stringify(drawingData, null, 2));
-    res.sendStatus(200);
-});
-
-// Endpoint to retrieve drawing data
-app.get('/get-drawing', (req, res) => {
-    const drawingData = readJSONFileSync('drawingData.json');
-    res.json(drawingData);
-});
-
-// Endpoint to save audio file
-app.post('/upload-audio', upload.single('audio'), (req, res) => {
-    const audioFile = req.file;
-    const audioData = {
-        id: uuidv4(),
-        filename: audioFile.filename,
-        originalname: audioFile.originalname,
-        mimetype: audioFile.mimetype,
-        size: audioFile.size,
-    };
-
-    let audioFiles = readJSONFileSync('audioData.json');
-    audioFiles.push(audioData);
-    fs.writeFileSync('audioData.json', JSON.stringify(audioFiles, null, 2));
-    res.sendStatus(200);
-});
-
-// Endpoint to retrieve audio files
-app.get('/get-audio', (req, res) => {
-    const audioFiles = readJSONFileSync('audioData.json');
-    res.json(audioFiles);
-});
+// Endpoint to save drawing data (not needed if you're fetching from Vercel)
+// Endpoint to retrieve drawing data (fetch from Vercel instead)
+// Endpoint to save audio file (not needed if you're fetching from Vercel)
+// Endpoint to retrieve audio files (fetch from Vercel instead)
 
 // Serve the uploaded audio files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
