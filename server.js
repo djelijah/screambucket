@@ -6,15 +6,14 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const { configDotenv } = require('dotenv');
 
-configDotenv
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const s3 = new AWS.S3({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION,
+    accessKeyId: 'AKIA2UC3DZU3GKYYY6VU',
+    secretAccessKey: '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',
+    region: 'us-east-1',
 });
 
 app.use(bodyParser.json());
@@ -35,7 +34,7 @@ const audioDataKey = 'audioData.json';
 async function fetchS3Data(key) {
     try {
         const params = {
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Bucket: 'myscreambucket',
             Key: key,
         };
         const data = await s3.getObject(params).promise();
@@ -49,7 +48,7 @@ async function fetchS3Data(key) {
 async function saveS3Data(key, data) {
     try {
         const params = {
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Bucket: 'myscreambucket',
             Key: key,
             Body: JSON.stringify(data, null, 2),
             ContentType: 'application/json',
@@ -94,7 +93,7 @@ app.post('/upload-audio', upload.single('audio'), async (req, res) => {
         const audioKey = `${uuidv4()}.wav`;
 
         const params = {
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Bucket: 'myscreambucket',
             Key: audioKey,
             Body: audioFile.buffer,
             ContentType: audioFile.mimetype,
@@ -126,7 +125,7 @@ app.get('/get-audio', async (req, res) => {
         const audioFilesWithUrls = audioFiles.map(file => ({
             ...file,
             url: s3.getSignedUrl('getObject', {
-                Bucket: process.env.AWS_S3_BUCKET_NAME,
+                Bucket: 'myscreambucket',
                 Key: file.filename,
                 Expires: 60 * 60, // URL expires in 1 hour
             }),
