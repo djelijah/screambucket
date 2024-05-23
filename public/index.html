@@ -45,36 +45,33 @@
       font-size: 1.2em;
       color: #666;
     }
-
     .countdown {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 6em; /* Extra large font size */
+      font-size: 6em;
     }
     .scream {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 6em; /* Extra large font size */
+      font-size: 6em;
       letter-spacing: 50px;
-      text-align: center; /* Center the text */
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <h1>ScreamBucket</h1>
-
   <canvas id="canvas"></canvas>
-
   <script>
     var canvas = document.getElementById('canvas');
     var context = canvas.getContext('2d');
 
-    var canvasWidth = window.innerWidth * 1; // Adjust width for responsiveness
-    var canvasHeight = window.innerHeight * 1; // Adjust height for responsiveness
+    var canvasWidth = window.innerWidth * 1;
+    var canvasHeight = window.innerHeight * 1;
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
     context.lineWidth = 1.5;
@@ -84,26 +81,22 @@
     var audioContext;
     var mediaRecorder;
     var audioChunks = [];
-    var beep = new Audio('https://myscreambucket.s3.amazonaws.com/beep.mp3');
 
-    // Create a new line for each recording with a diffused appearance across the canvas
+    var beep = new Audio('beep.mp3');
+
     function createLine(startX, startY) {
       var line = [];
-
-      // Randomize the starting position across the entire canvas
       startX = Math.random() * canvasWidth;
       startY = Math.random() * canvasHeight;
-
-      // Adjust step size for a more diffused appearance
-      var stepX = Math.random() * 20; // Random horizontal step size
-      var stepY = Math.random() * 20; // Random vertical step size
+      var stepX = Math.random() * 20;
+      var stepY = Math.random() * 20;
 
       for (var j = startX; j <= canvasWidth - stepX; j += stepX) {
         var randomXDiffusion = (Math.random() - 0.5) * 40;
         var randomYDiffusion = (Math.random() - 0.5) * 40;
         var angle = (Math.random() - 0.5) * Math.PI;
         var newX = j + randomXDiffusion + Math.cos(angle) * stepX;
-        var newY = startY + randomYDiffusion + Math.sin(angle) * stepY; // Adding vertical randomness
+        var newY = startY + randomYDiffusion + Math.sin(angle) * stepY;
         var point = { x: newX, y: newY };
         line.push(point);
       }
@@ -111,7 +104,6 @@
       saveDrawing({ lines });
     }
 
-    // Draw all lines on the canvas
     function drawLines() {
       context.clearRect(0, 0, canvas.width, canvas.height);
       for (var i = 0; i < lines.length; i++) {
@@ -124,7 +116,6 @@
       }
     }
 
-    // Save drawing data to server
     function saveDrawing(data) {
       fetch('/save-drawing', {
         method: 'POST',
@@ -135,7 +126,6 @@
         .catch(error => console.error('Error saving drawing data:', error));
     }
 
-    // Record audio
     function recordAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -181,7 +171,6 @@
         });
     }
 
-    // Upload audio to server
     function uploadAudio(blob) {
       var formData = new FormData();
       formData.append('audio', blob, 'recording.wav');
@@ -195,7 +184,19 @@
       .catch(error => console.error('Error uploading audio:', error));
     }
 
-    // Function to display countdown numbers
+    function fetchAudioData() {
+      fetch('/get-audio')
+        .then(response => response.json())
+        .then(audioFiles => {
+          audioFiles.forEach(file => {
+            const audio = new Audio(file.url);
+            audio.loop = true;
+            audio.play();
+          });
+        })
+        .catch(error => console.error('Error fetching audio data:', error));
+    }
+
     function displayCountdown(number) {
       var countdownWindow = document.createElement('div');
       countdownWindow.classList.add('countdown');
@@ -206,58 +207,60 @@
       }, 1000);
     }
 
-    // Function to start recording after countdown
-  function startRecordingAfterCountdown() {
-    var countdownNumbers = [3, 2, 1];
-    countdownNumbers.forEach(function(number, index) {
-      setTimeout(function() {
-        beep.play(); // Play beep sound
-        displayCountdown(number);
-        if (index === countdownNumbers.length - 1) {
-          setTimeout(function() {
-            beep.play(); // Play beep sound
-            displayCountdown('SCREAAAAM');
+    function startRecordingAfterCountdown() {
+      var countdownNumbers = [3, 2, 1];
+      countdownNumbers.forEach(function(number, index) {
+        setTimeout(function() {
+          beep.play();
+          displayCountdown(number);
+          if (index === countdownNumbers.length - 1) {
             setTimeout(function() {
-              recordAudio();
+              beep.play();
+              displayCountdown('SCREAAAAM');
+              setTimeout(function() {
+                recordAudio();
+              }, 1000);
             }, 1000);
-          }, 1000);
-        }
-      }, index * 1000); // Display each number for 2 seconds
-    });
-  }
-
-  // Function to start the countdown
-  function startCountdown() {
-    var countdown = 3;
-    var countdownInterval = setInterval(function() {
-      if (countdown > 0) {
-        console.log(countdown);
-        countdown--;
-      } else {
-        clearInterval(countdownInterval);
-        console.log('SCREAAAM!');
-        startRecordingAfterCountdown();
-      }
-    }, 1000);
-  }
-
-  // Start recording after countdown when the page is loaded
-  document.addEventListener('DOMContentLoaded', function() {
-    var hasRecorded = sessionStorage.getItem('hasRecorded');
-    if (hasRecorded === 'true') {
-      console.log('User has recorded before, fetching data.');
-      fetchDrawingData();
-      fetchAudioData();
-    } else {
-      console.log('User has not recorded before, starting countdown.');
-      startCountdown();
+          }
+        }, index * 1000);
+      });
     }
-  });
 
-  // Initialize the canvas with stored drawing and audio data
-  fetchDrawingData();
-  fetchAudioData();
+    function startCountdown() {
+      var countdown = 3;
+      var countdownInterval = setInterval(function() {
+        if (countdown > 0) {
+          console.log(countdown);
+          countdown--;
+        } else {
+          clearInterval(countdownInterval);
+          console.log('SCREAAAM!');
+          startRecordingAfterCountdown();
+        }
+      }, 1000);
+    }
 
+    document.addEventListener('DOMContentLoaded', function() {
+      var hasRecorded = sessionStorage.getItem('hasRecorded');
+      if (hasRecorded === 'true') {
+        console.log('User has recorded before, fetching data.');
+        fetchDrawingData();
+        fetchAudioData();
+      } else {
+        console.log('User has not recorded before, starting countdown.');
+        startCountdown();
+      }
+    });
+
+    function fetchDrawingData() {
+      fetch('/get-drawing')
+        .then(response => response.json())
+        .then(data => {
+          lines = data;
+          drawLines();
+        })
+        .catch(error => console.error('Error fetching drawing data:', error));
+    }
   </script>
 </body>
 </html>
